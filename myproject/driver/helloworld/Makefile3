@@ -1,0 +1,8 @@
+KERNELDIR ?= /lib/modules/$(shell uname -r)/build
+#obj-m := hello.o
+obj-m := mod.o# module name is:mod.ko
+mod-objs := hello.o
+default:
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+clean:
+	rm *.ko *.o *.mod.c modules.* Module.*

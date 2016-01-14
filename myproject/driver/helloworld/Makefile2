@@ -1,0 +1,10 @@
+obj-m := hello.o
+#KERNELDIR := /lib/modules/2.6.22-14-generic/build
+KERNELDIR := /usr/src/linux-source-3.2.0/linux-source-3.2.0
+PWD := $(shell pwd)
+
+modules:
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+
+#modules_install:
+#	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install

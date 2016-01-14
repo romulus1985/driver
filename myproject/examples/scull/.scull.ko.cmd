@@ -1,0 +1,1 @@
+cmd_/root/myproject/examples/scull/scull.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-21-generic/scripts/module-common.lds --build-id -o /root/myproject/examples/scull/scull.ko /root/myproject/examples/scull/scull.o /root/myproject/examples/scull/scull.mod.o
