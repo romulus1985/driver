@@ -4,6 +4,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 //#include <drm/drm_os_linux.h>
 
@@ -290,8 +291,60 @@ static void scull_setup_cdev_sz(struct scull_dev *dev, int index)
 	}
 }
 
-struct scull_dev scull_dev;
+struct scull_dev my_dev;
 
+int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, int * eof, void * data)
+{
+	printk(KERN_ALERT "%s enter.\n", __func__);
+	int i, j, len = 0;
+	int limit = count - 80;
+	printk(KERN_ALERT "run at line %d\n", __LINE__);
+	struct scull_dev *dev = &my_dev;
+	printk(KERN_ALERT "dev is:%p\n", dev);
+	struct scull_qset *qset = dev->data;
+	printk(KERN_ALERT, "dev is:%p, qset is:%p\n", dev, qset);
+	printk(KERN_ALERT "dev2 is:%p\n", dev);
+	
+	if(down_interruptible(&dev->sem))
+	{
+		return -ERESTARTSYS;
+	}
+	len += sprintf(buf+len, "\nDevice 0: qset %i, q %i, size %li\n",
+		dev->qset, dev->quantum, dev->size);
+	for(; len < limit; qset = qset->next)
+	{
+		len += sprintf(buf + len, "\n item at %p, qset at %p\n",
+			qset, qset->data);
+		if(qset->data 
+			&& !qset->next) // last qset
+		{
+			for(j = 0; j < dev->qset&& len < limit; j++)
+			{
+				if(qset->data[j])
+				{
+					len += sprintf(buf+len, "    %4i: %8p",
+						j, qset->data[j]);
+				}
+			}
+		}
+	}
+	up(&dev->sem);
+	*eof = 1;
+	return len;
+}
+
+static const char* proc_mem_name = "scull_mem_sz";
+static void scull_create_proc_sz(void)
+{
+	printk(KERN_ALERT "%s enter.\n", __func__);
+	create_proc_read_entry(proc_mem_name,
+		0,
+		NULL,
+		scull_read_procmem_sz,
+		NULL);
+}
+
+//#define SCULL_DEBUG
 static int scull_init_sz(void)
 {
 	int result;
@@ -304,15 +357,21 @@ static int scull_init_sz(void)
 		printk(KERN_WARNING "scull: can't get major %d\n", scull_major);
 		return result;
 	}
-	init_MUTEX(&scull_dev.sem);
-	scull_setup_cdev_sz(&scull_dev, 0);
+	init_MUTEX(&my_dev.sem);
+	scull_setup_cdev_sz(&my_dev, 0);
+#ifdef SCULL_DEBUG
+	scull_create_proc_sz();
+#endif
 	return 0;
 }
 
 static void scull_exit_sz(void)
 {
 	printk(KERN_ALERT "%s exit.\n", __func__);
-	cdev_del(&scull_dev.cdev);
+#ifdef SCULL_DEBUG
+	remove_proc_entry(proc_mem_name, NULL);
+#endif
+	cdev_del(&my_dev.cdev);
 	unregister_chrdev_region(dev, scull_count);	
 }
 
