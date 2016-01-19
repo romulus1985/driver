@@ -12,10 +12,12 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int scull_quantum = 4000;
 static int scull_qset = 1000;
+static int scull_nr_devs_sz = 4;
 
 int scull_open_sz(struct inode *inode, struct file *filp);
 ssize_t scull_read_sz(struct file *filep, char __user *buf, size_t count, loff_t *f_pos);
 ssize_t scull_write_sz(struct file *filep, const char __user *buf, size_t count, loff_t *f_pos);
+static void scull_exit_sz(void);
 
 struct file_operations scull_fops = {
 	.owner	=	THIS_MODULE,
@@ -269,7 +271,7 @@ int scull_open_sz(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static dev_t dev;
+static dev_t devno;
 static unsigned int scull_major, scull_minor = 0, scull_count = 1;
 
 static void scull_setup_cdev_sz(struct scull_dev *dev, int index)
@@ -291,14 +293,17 @@ static void scull_setup_cdev_sz(struct scull_dev *dev, int index)
 	}
 }
 
-struct scull_dev my_dev;
+//struct scull_dev my_dev;
+struct scull_dev* scull_devices;
 
 int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, int * eof, void * data)
 {
 	printk(KERN_ALERT "%s enter.\n", __func__);
 	int i, j, len = 0;
 	int limit = count - 80;
-	struct scull_dev *dev = &my_dev;
+	//struct scull_dev *dev = &my_dev;
+	for(i = 0; i < scull_nr_devs_sz && len < limit; i++) {
+		struct scull_dev *dev = &scull_devices[i];
 	printk(KERN_ALERT "dev is:%p\n", dev);
 	struct scull_qset *qset = dev->data;
 	printk(KERN_ALERT "qset is:%p\n", qset); // why not print???, because KERN_ALERT suffix with ,
@@ -308,8 +313,8 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 	{
 		return -ERESTARTSYS;
 	}
-	len += sprintf(buf+len, "\nDevice 0: qset %i, q %i, size %li\n",
-		dev->qset, dev->quantum, dev->size);
+	len += sprintf(buf+len, "\nDevice %i: qset %i, q %i, size %li\n",
+		i, dev->qset, dev->quantum, dev->size);
 	for(; qset && len < limit; qset = qset->next)
 	{
 		len += sprintf(buf + len, "\n item at %p, qset at %p\n",
@@ -328,6 +333,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 		}
 	}
 	up(&dev->sem);
+	}
 	*eof = 1;
 	return len;
 }
@@ -346,32 +352,57 @@ static void scull_create_proc_sz(void)
 //#define SCULL_DEBUG
 static int scull_init_sz(void)
 {
-	int result;
+	int result, i;
 	printk(KERN_ALERT "\n\n\n%s enter.\n", __func__);
-	result = alloc_chrdev_region(&dev, scull_minor, scull_count, "scull_devices");  
-	scull_major = MAJOR(dev);
+	result = alloc_chrdev_region(&devno, scull_minor, scull_count, "scull_devices");  
+	scull_major = MAJOR(devno);
 	printk(KERN_ALERT "scull_major is:%u\n", scull_major);
 	if(result > 0)
 	{
 		printk(KERN_WARNING "scull: can't get major %d\n", scull_major);
 		return result;
 	}
-	init_MUTEX(&my_dev.sem);
-	scull_setup_cdev_sz(&my_dev, 0);
+
+	scull_devices = kmalloc(scull_nr_devs_sz * sizeof(struct scull_dev), GFP_KERNEL);
+	if(!scull_devices)
+	{
+		result = -ENOMEM;
+		goto fail;
+	}
+	memset(scull_devices, 0, scull_nr_devs_sz * sizeof(struct scull_dev));
+
+	for(i = 0; i < scull_nr_devs_sz; i++) {
+		init_MUTEX(&scull_devices[i].sem);
+		scull_devices[i].qset = scull_qset;
+		scull_devices[i].quantum = scull_quantum;
+		scull_setup_cdev_sz(&scull_devices[i], i);
+	}
 #ifdef SCULL_DEBUG
 	scull_create_proc_sz();
 #endif
 	return 0;
+fail:
+	scull_exit_sz();
+	return result;
 }
 
 static void scull_exit_sz(void)
 {
 	printk(KERN_ALERT "%s exit.\n", __func__);
+	int i;
 #ifdef SCULL_DEBUG
 	remove_proc_entry(proc_mem_name, NULL);
 #endif
-	cdev_del(&my_dev.cdev);
-	unregister_chrdev_region(dev, scull_count);	
+	if(scull_devices) {
+		for(i = 0; i < scull_nr_devs_sz; i++)
+		{
+			scull_trim(&scull_devices[i]);
+			//cdev_del(&my_dev.cdev);
+			cdev_del(&scull_devices[i].cdev);
+		}
+		kfree(scull_devices);
+	}
+	unregister_chrdev_region(devno, scull_count);	
 }
 
 module_init(scull_init_sz);

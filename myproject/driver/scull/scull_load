@@ -1,9 +1,13 @@
 #!/bin/sh
-module="scull"
-device="scull"
+#module="scull"
+module="scull_devices"
+#device="scull"
+ko="scull"
+device="scull_dev"
 mode="664"
 
-/sbin/insmod ./${module}.ko $* || exit 1
+#/sbin/insmod ./${module}.ko $* || exit 1
+/sbin/insmod ./${ko}.ko $* || exit 1
 
 rm -f /dev/${device}[0-3]
 
