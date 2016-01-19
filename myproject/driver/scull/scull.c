@@ -5,6 +5,7 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <asm/uaccess.h>
 //#include <drm/drm_os_linux.h>
 
@@ -43,6 +44,82 @@ struct scull_dev
 	unsigned long size;
 	struct cdev cdev;
 	struct semaphore sem;
+};
+struct scull_dev* scull_devices;
+
+static void *scull_seq_start(struct seq_file *s, loff_t *pos)
+{
+	if(*pos >= scull_nr_devs_sz)
+	{
+		return NULL;
+	}
+	return scull_devices + *pos;
+}
+
+static void *scull_seq_next(struct seq_file *s, void* v, loff_t *pos)
+{
+	(*pos)++;
+	if(*pos >= scull_nr_devs_sz)
+	{
+		return NULL;
+	}
+	return scull_devices + *pos;
+}
+
+static void scull_seq_stop(struct seq_file *s, void* v)
+{
+
+}
+
+static int scull_seq_show(struct seq_file *s, void* v)
+{
+	struct scull_dev *dev = (struct scull_dev *)v;
+	struct scull_qset *qset = NULL;
+	int i;
+	if(down_interruptible(&dev->sem))
+	{
+		return -ERESTARTSYS;
+	}
+	seq_printf(s, "Device %d: qset %d, quantum %d, size %ld for proc seq\n",
+		(int)(dev - scull_devices), dev->qset, dev->quantum, dev->size);
+	for(qset = dev->data; qset; qset = qset->next)
+	{
+		seq_printf(s, "item at %p, qset at %p\n", qset, qset->data);
+		if(qset->data 
+			&& !qset->next)
+		{
+			for(i = 0; i < dev->qset; i++)
+			{
+				if(qset->data[i])
+				{
+					seq_printf(s, "    %4i:  %8p\n",
+						i, qset->data[i]);
+				}
+			}
+		}
+	}
+	up(&dev->sem);
+	return 0;
+}
+
+static struct seq_operations scull_seq_ops = {
+	.start = scull_seq_start,
+	.next = scull_seq_next,
+	.stop = scull_seq_stop,
+	.show = scull_seq_show
+};
+
+static int scull_proc_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &scull_seq_ops);
+}
+
+static struct file_operations scull_proc_ops = {
+	.owner = THIS_MODULE,
+	.open = scull_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
 };
 
 int scull_trim(struct scull_dev *dev)
@@ -293,9 +370,6 @@ static void scull_setup_cdev_sz(struct scull_dev *dev, int index)
 	}
 }
 
-//struct scull_dev my_dev;
-struct scull_dev* scull_devices;
-
 int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, int * eof, void * data)
 {
 	printk(KERN_ALERT "%s enter.\n", __func__);
@@ -313,7 +387,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 	{
 		return -ERESTARTSYS;
 	}
-	len += sprintf(buf+len, "\nDevice %i: qset %i, q %i, size %li\n",
+	len += sprintf(buf+len, "\nDevice %i: qset %i, q %i, size %li for proc mem\n",
 		i, dev->qset, dev->quantum, dev->size);
 	for(; qset && len < limit; qset = qset->next)
 	{
@@ -342,11 +416,19 @@ static const char* proc_mem_name = "scull_mem_sz";
 static void scull_create_proc_sz(void)
 {
 	printk(KERN_ALERT "%s enter.\n", __func__);
+	struct proc_dir_entry *entry;
+	
 	create_proc_read_entry(proc_mem_name,
 		0,
 		NULL,
 		scull_read_procmem_sz,
 		NULL);
+
+	entry = create_proc_entry("scull_seq_sz", 0, NULL);
+	if(entry)
+	{
+		entry->proc_fops = &scull_proc_ops;
+	}
 }
 
 //#define SCULL_DEBUG
