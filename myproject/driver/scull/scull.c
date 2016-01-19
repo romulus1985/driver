@@ -158,7 +158,7 @@ ssize_t scull_write_sz(struct file * filep, const char __user *buf, size_t count
 		}
 		memset(dptr->data[s_pos], 0, quantum);
 	}
-	printk(KERN_ALERT "after dptr->data[s_pos] kmalloc at %d.\n", __LINE__);
+	printk(KERN_ALERT "after dptr->data[%d] kmalloc at %d.\n", s_pos, __LINE__);
 	if(q_pos + count > quantum)
 	{
 		count = quantum - q_pos;
@@ -302,7 +302,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 	struct scull_dev *dev = &my_dev;
 	printk(KERN_ALERT "dev is:%p\n", dev);
 	struct scull_qset *qset = dev->data;
-	printk(KERN_ALERT, "dev is:%p, qset is:%p\n", dev, qset);
+	printk(KERN_ALERT, "qset is:%p\n", qset); // why not print???
 	printk(KERN_ALERT "dev2 is:%p\n", dev);
 	
 	if(down_interruptible(&dev->sem))
@@ -311,7 +311,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 	}
 	len += sprintf(buf+len, "\nDevice 0: qset %i, q %i, size %li\n",
 		dev->qset, dev->quantum, dev->size);
-	for(; len < limit; qset = qset->next)
+	for(; qset && len < limit; qset = qset->next)
 	{
 		len += sprintf(buf + len, "\n item at %p, qset at %p\n",
 			qset, qset->data);
@@ -322,7 +322,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 			{
 				if(qset->data[j])
 				{
-					len += sprintf(buf+len, "    %4i: %8p",
+					len += sprintf(buf+len, "    %4i: %8p\n",
 						j, qset->data[j]);
 				}
 			}
@@ -348,7 +348,7 @@ static void scull_create_proc_sz(void)
 static int scull_init_sz(void)
 {
 	int result;
-	printk(KERN_ALERT "%s enter.\n", __func__);
+	printk(KERN_ALERT "\n\n\n%s enter.\n", __func__);
 	result = alloc_chrdev_region(&dev, scull_minor, scull_count, "scull_devices");  
 	scull_major = MAJOR(dev);
 	printk(KERN_ALERT "scull_major is:%u\n", scull_major);

@@ -1,1 +1,0 @@
-cmd_/root/driver/scull/scull.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-21-generic/scripts/module-common.lds --build-id -o /root/driver/scull/scull.ko /root/driver/scull/scull.o /root/driver/scull/scull.mod.o

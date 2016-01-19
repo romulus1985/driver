@@ -1,4 +1,14 @@
 # KERNELRELEASE can not KERNEL_RELEASE, then MODPOST 0 modules
+DEBUG=y
+
+ifeq ($(DEBUG), y)
+  DEBFLAGS = -O -g -DSCULL_DEBUG
+else
+  DEBFLAGS = -O2
+endif
+
+EXTRA_CFLAGS += $(DEBFLAGS)
+
 ifneq ($(KERNELRELEASE),)
 	obj-m := scull.o
 else
@@ -9,5 +19,5 @@ else
 default:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 clean:
-	rm *.ko *.o *.mod.c modules.* Module.*
+	rm -rf *.ko *.o *.mod.c modules.* Module.*
 endif
