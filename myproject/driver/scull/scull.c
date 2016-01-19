@@ -298,11 +298,10 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 	printk(KERN_ALERT "%s enter.\n", __func__);
 	int i, j, len = 0;
 	int limit = count - 80;
-	printk(KERN_ALERT "run at line %d\n", __LINE__);
 	struct scull_dev *dev = &my_dev;
 	printk(KERN_ALERT "dev is:%p\n", dev);
 	struct scull_qset *qset = dev->data;
-	printk(KERN_ALERT, "qset is:%p\n", qset); // why not print???
+	printk(KERN_ALERT "qset is:%p\n", qset); // why not print???, because KERN_ALERT suffix with ,
 	printk(KERN_ALERT "dev2 is:%p\n", dev);
 	
 	if(down_interruptible(&dev->sem))
