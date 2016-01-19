@@ -413,6 +413,7 @@ int scull_read_procmem_sz(char * buf, char * * start, off_t offset, int count, i
 }
 
 static const char* proc_mem_name = "scull_mem_sz";
+static const char* proc_seq_name = "scull_seq_sz";
 static void scull_create_proc_sz(void)
 {
 	printk(KERN_ALERT "%s enter.\n", __func__);
@@ -424,7 +425,7 @@ static void scull_create_proc_sz(void)
 		scull_read_procmem_sz,
 		NULL);
 
-	entry = create_proc_entry("scull_seq_sz", 0, NULL);
+	entry = create_proc_entry(proc_seq_name, 0, NULL);
 	if(entry)
 	{
 		entry->proc_fops = &scull_proc_ops;
@@ -474,6 +475,7 @@ static void scull_exit_sz(void)
 	int i;
 #ifdef SCULL_DEBUG
 	remove_proc_entry(proc_mem_name, NULL);
+	remove_proc_entry(proc_seq_name, NULL);
 #endif
 	if(scull_devices) {
 		for(i = 0; i < scull_nr_devs_sz; i++)
