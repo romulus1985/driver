@@ -1,1 +1,0 @@
-cmd_/home/romulus/driver/hellop/hellop.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.2.0-89-generic/scripts/module-common.lds --build-id  -o /home/romulus/driver/hellop/hellop.ko /home/romulus/driver/hellop/hellop.o /home/romulus/driver/hellop/hellop.mod.o
