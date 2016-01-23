@@ -7,25 +7,34 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
+#include "scull_ioctl.h"
+
 //#include <drm/drm_os_linux.h>
 
 MODULE_LICENSE("Dual BSD/GPL");
 
+#define SCULL_QUANTUM 4000
+#define SCULL_QSET 1000
+
 static int scull_quantum = 4000;
 static int scull_qset = 1000;
 static int scull_nr_devs_sz = 4;
+static int scull_p_buffer = 0;
 
 int scull_open_sz(struct inode *inode, struct file *filp);
 ssize_t scull_read_sz(struct file *filep, char __user *buf, size_t count, loff_t *f_pos);
 ssize_t scull_write_sz(struct file *filep, const char __user *buf, size_t count, loff_t *f_pos);
 static void scull_exit_sz(void);
 
+static int scull_ioctl_sz(struct inode *inode, struct file *filp,
+	unsigned int cmd, unsigned long arg);
+
 struct file_operations scull_fops = {
 	.owner	=	THIS_MODULE,
 	.llseek	=	NULL,
 	.read	=	scull_read_sz,
 	.write	= 	scull_write_sz,
-	//.ioctl	=	NULL,
+	.ioctl	=	scull_ioctl_sz,
 	.open	=	scull_open_sz,
 	.release=	NULL,
 };
@@ -333,6 +342,154 @@ ssize_t scull_read_sz(struct file *filep, char __user *buf, size_t count, loff_t
 		up(&dev->sem);
 		printk(KERN_ALERT "read count is:%d\n", retval);
 		return retval;
+}
+
+static int scull_ioctl_sz(struct inode *inode, struct file *filp,
+	unsigned int cmd, unsigned long arg)
+{
+	int err = 0;
+	int tmp;
+	int retval = 0;
+
+	if(_IOC_TYPE(cmd) != SCULL_IOC_MAGIC_SZ)
+	{
+		return -ENOTTY;
+	}
+	if(_IOC_NR(cmd) > SCULL_IOC_MAXNR_SZ)
+	{
+		return -ENOTTY;
+	}
+	if(_IOC_DIR(cmd) & _IOC_READ)
+	{
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	}
+	else if(_IOC_DIR(cmd) & _IOC_WRITE)
+	{
+		err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+	}
+	if(err) 
+	{
+		return -EFAULT;
+	}
+	switch(cmd)
+	{
+	case SCULL_IOC_RESET_SZ:
+		scull_quantum = SCULL_QUANTUM;
+		scull_qset = SCULL_QSET;
+		printk(KERN_ALERT "SCULL_IOC_RESET_SZ: scull_quantum = %d, scull_qset = %d\n",
+			scull_quantum, scull_qset);
+		break;
+	case SCULL_IOC_SQUANTUM_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		retval = __get_user(scull_quantum, (int __user*)arg);
+		printk(KERN_ALERT "SCULL_IOC_SQUANTUM_SZ: scull_quantum = %d\n", scull_quantum);
+		break;
+	case SCULL_IOC_TQUANTUM_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		scull_quantum = arg;
+		printk(KERN_ALERT "SCULL_IOC_TQUANTUM_SZ: scull_quantum= %d\n", scull_quantum);
+		break;
+	case SCULL_IOC_GQUANTUM_SZ:
+		retval = __put_user(scull_quantum, (int __user*)arg);
+		printk(KERN_ALERT "SCULL_IOC_GQUANTUM_SZ: use arg return scull_quantum = %d\n",
+			scull_quantum);
+		break;
+	case SCULL_IOC_QQUANTUM_SZ:
+		retval = scull_quantum;
+		printk(KERN_ALERT "SCULL_IOC_QQUANTUM_SZ: return scull_quantum = %d\n",
+			scull_quantum);
+		break;
+	case SCULL_IOC_XQUANTUM_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		tmp = scull_quantum;
+		retval = __get_user(scull_quantum, (int __user*)arg);
+		if(0 == retval)
+		{
+			retval = __put_user(tmp, (int __user*)arg);
+		}
+		printk(KERN_ALERT "SCULL_IOC_XQUANTUM_SZ: scull_quantum = %d, and use arg return old scull_quantum = %d\n",
+			scull_quantum, tmp);
+		break;
+	case SCULL_IOC_HQUANTUM_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		tmp = scull_quantum;
+		scull_quantum = arg;
+		retval = tmp;
+		printk(KERN_ALERT "SCULL_IOC_HQUANTUM_SZ: scull_quantum = %d, and return old scull_quantum = %d\n",
+			scull_quantum, tmp);
+		break;
+	case SCULL_IOC_SQSET_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		retval = __get_user(scull_qset, (int __user*)arg);
+		printk(KERN_ALERT "SCULL_IOC_SQSET_SZ: scull_qset = %d\n", scull_qset);
+		break;
+	case SCULL_IOC_TQSET_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		scull_qset = arg;
+		printk(KERN_ALERT "SCULL_IOC_TQSET_SZ: scull_qset = %d\n", scull_qset);
+		break;
+	case SCULL_IOC_GQSET_SZ:
+		retval = __put_user(scull_qset, (int __user*)arg);
+		printk(KERN_ALERT "SCULL_IOC_GQSET_SZ: scull_qset = %d\n", scull_qset);
+		break;
+	case SCULL_IOC_QQSET_SZ:
+		retval = scull_qset;
+		printk(KERN_ALERT "SCULL_IOC_QQSET_SZ: scull_qset = %d\n", scull_qset);
+		break;
+	case SCULL_IOC_XQSET_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		tmp = scull_qset;
+		retval = __get_user(scull_qset, (int __user*)arg);
+		if(!retval)
+		{
+			retval = __put_user(tmp, (int __user*)arg);
+		}
+		printk(KERN_ALERT "SCULL_IOC_XQSET_SZ: scull_qset = %d, and use arg return old scull_qset = %d\n",
+			scull_qset, tmp);
+		break;
+	case SCULL_IOC_HQSET_SZ:
+		if(!capable(CAP_SYS_ADMIN))
+		{
+			return -EPERM;
+		}
+		tmp = scull_qset;
+		scull_qset = arg;
+		retval = tmp;
+		printk(KERN_ALERT "SCULL_IOC_HQSET_SZ: scull_qset = %d, and return old scull_qset = %d\n",
+			scull_qset, tmp);
+		break;
+	case SCULL_P_IOC_TSIZE_SZ:
+		scull_p_buffer = arg;
+		break;
+	case SCULL_P_IOC_QSIZE_SZ:
+		retval = scull_p_buffer;
+		break;
+	default:
+		retval = -EFAULT;
+		break;
+	}
+	return retval;
 }
 
 int scull_open_sz(struct inode *inode, struct file *filp)
