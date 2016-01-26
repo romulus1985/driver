@@ -11,6 +11,8 @@
 
 //#include <drm/drm_os_linux.h>
 
+#include "scull_sz.h"
+
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define SCULL_QUANTUM 4000
@@ -19,7 +21,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int scull_quantum = 4000;
 static int scull_qset = 1000;
 static int scull_nr_devs_sz = 4;
-static int scull_p_buffer = 0;
+//int scull_p_buffer_sz = 4000;
 
 int scull_open_sz(struct inode *inode, struct file *filp);
 ssize_t scull_read_sz(struct file *filep, char __user *buf, size_t count, loff_t *f_pos);
@@ -480,10 +482,10 @@ static int scull_ioctl_sz(struct inode *inode, struct file *filp,
 			scull_qset, tmp);
 		break;
 	case SCULL_P_IOC_TSIZE_SZ:
-		scull_p_buffer = arg;
+		scull_p_buffer_sz = arg;
 		break;
 	case SCULL_P_IOC_QSIZE_SZ:
-		retval = scull_p_buffer;
+		retval = scull_p_buffer_sz;
 		break;
 	default:
 		retval = -EFAULT;
@@ -506,7 +508,8 @@ int scull_open_sz(struct inode *inode, struct file *filp)
 }
 
 static dev_t devno;
-static unsigned int scull_major, scull_minor = 0, scull_count = 1;
+//static unsigned int scull_major, scull_minor = 0, scull_count = 1;
+static unsigned int scull_major, scull_minor = 0;
 
 static void scull_setup_cdev_sz(struct scull_dev *dev, int index)
 {
@@ -594,7 +597,8 @@ static int scull_init_sz(void)
 {
 	int result, i;
 	printk(KERN_ALERT "\n\n\n%s enter.\n", __func__);
-	result = alloc_chrdev_region(&devno, scull_minor, scull_count, "scull_devices");  
+	//result = alloc_chrdev_region(&devno, scull_minor, scull_count, "scull_devices");  
+	result = alloc_chrdev_region(&devno, scull_minor, scull_nr_devs_sz, "scull_devices");  
 	scull_major = MAJOR(devno);
 	printk(KERN_ALERT "scull_major is:%u\n", scull_major);
 	if(result > 0)
@@ -617,6 +621,10 @@ static int scull_init_sz(void)
 		scull_devices[i].quantum = scull_quantum;
 		scull_setup_cdev_sz(&scull_devices[i], i);
 	}
+
+	devno = MKDEV(scull_major, scull_minor + scull_nr_devs_sz);
+	devno += scull_p_init_sz(devno);
+	
 #ifdef SCULL_DEBUG
 	scull_create_proc_sz();
 #endif
@@ -630,6 +638,7 @@ static void scull_exit_sz(void)
 {
 	printk(KERN_ALERT "%s exit.\n", __func__);
 	int i;
+	dev_t devno = MKDEV(scull_major, scull_minor);
 #ifdef SCULL_DEBUG
 	remove_proc_entry(proc_mem_name, NULL);
 	remove_proc_entry(proc_seq_name, NULL);
@@ -643,7 +652,10 @@ static void scull_exit_sz(void)
 		}
 		kfree(scull_devices);
 	}
-	unregister_chrdev_region(devno, scull_count);	
+	//unregister_chrdev_region(devno, scull_count);	
+	unregister_chrdev_region(devno, scull_nr_devs_sz);	
+	
+	scull_p_cleanup_sz();
 }
 
 module_init(scull_init_sz);

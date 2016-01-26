@@ -10,7 +10,8 @@ endif
 EXTRA_CFLAGS += $(DEBFLAGS)
 
 ifneq ($(KERNELRELEASE),)
-	obj-m := scull.o
+	scull-objs := scull_sz.o pipe_sz.o # main objs
+	obj-m := scull.o # obj main
 else
 	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 # /usr/src/linux-headers-2.6.32-38-generic in default ubuntu 10.04.4

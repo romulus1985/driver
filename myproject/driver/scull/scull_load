@@ -6,10 +6,13 @@ ko="scull"
 device="scull_dev"
 mode="664"
 
+devicep="scullp_sz"
+
 #/sbin/insmod ./${module}.ko $* || exit 1
 /sbin/insmod ./${ko}.ko $* || exit 1
 
 rm -f /dev/${device}[0-3]
+rm -f /dev/${devicep}[4-7]
 
 major=$(awk "\$2==\"$module\" {print \$1}" /proc/devices)
 
@@ -18,8 +21,16 @@ mknod /dev/${device}1 c $major 1
 mknod /dev/${device}2 c $major 2
 mknod /dev/${device}3 c $major 3
 
+mknod /dev/${devicep}0 c $major 4
+mknod /dev/${devicep}1 c $major 5
+mknod /dev/${devicep}2 c $major 6
+mknod /dev/${devicep}3 c $major 7
+
 group="staff"
 grep -q '^staff:' /etc/group || group='wheel'
 
 chgrp $group /dev/${device}[0-3]
 chmod $mode /dev/${device}[0-3]
+
+chgrp $group /dev/${devicep}[0-3]
+chmod $mode /dev/${devicep}[0-3]
