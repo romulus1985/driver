@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
+#include <linux/poll.h>
 //#include <linux/semaphore.h>
 
 #include "scull_sz.h"
@@ -253,6 +254,26 @@ static ssize_t scull_p_write_sz(struct file *filp, const char __user *buf, size_
 	return count;
 }
 
+static unsigned int scull_p_pull_sz(struct file *filp, poll_table *wait)
+{
+	printk(KERN_ALERT "%s enter\n", __func__);
+	scull_pipe_sz *dev = filp->private_data;
+	unsigned int mask = 0;
+
+	down(&dev->sem);
+	poll_wait(filp, &dev->inq, wait);
+	poll_wait(filp, &dev->outq, wait);
+	if(dev->rp != dev->wp)
+	{
+		mask |= POLLIN | POLLRDNORM; // readable
+	}
+	else if(spacefree_sz(dev))
+	{
+		mask |= POLLOUT | POLLWRNORM; // writable
+	}
+	up(&dev->sem);
+	return mask;
+}
 
 struct file_operations scull_pipe_fops_sz = {
 	.owner = THIS_MODULE,
@@ -260,6 +281,7 @@ struct file_operations scull_pipe_fops_sz = {
 	.read = scull_p_read_sz,
 	.write = scull_p_write_sz,
 	.release = scull_p_release_sz,
+	.poll = scull_p_pull_sz,
 };
 
 static void scull_p_setup_cdev_sz(scull_pipe_sz *dev, int index)
