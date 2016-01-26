@@ -145,6 +145,7 @@ static int scull_p_open_sz(struct inode *inode, struct file *filp)
 	{
 		return -ERESTARTSYS;
 	}
+#if 0
 	if(!dev->begin)
 	{
 		dev->begin = kmalloc(scull_p_buffer_sz, GFP_KERNEL);
@@ -157,6 +158,7 @@ static int scull_p_open_sz(struct inode *inode, struct file *filp)
 	dev->buffer_size = scull_p_buffer_sz;
 	dev->end = dev->begin + dev->buffer_size;
 	dev->rp = dev->wp = dev->begin;
+#endif
 
 	if(filp->f_mode & FMODE_READ)
 	{
@@ -190,11 +192,13 @@ static int scull_p_release_sz(struct inode *inode, struct file *filp)
 	{
 		dev->nwriters--;
 	}
+#if 0
 	if(0 == (dev->nreaders + dev->nwriters))
 	{
 		kfree(dev->begin);
 		dev->begin = NULL;
 	}
+#endif
 	up(&dev->sem);
 	return 0;
 }
@@ -261,6 +265,20 @@ struct file_operations scull_pipe_fops_sz = {
 static void scull_p_setup_cdev_sz(scull_pipe_sz *dev, int index)
 {
 	int err, devno = scull_p_devno_sz + index;
+
+	
+	if(!dev->begin)
+	{
+		dev->begin = kmalloc(scull_p_buffer_sz, GFP_KERNEL);
+		if(!dev->begin)
+		{
+			//return -ENOMEM;
+			return;
+		}
+	}
+	dev->buffer_size = scull_p_buffer_sz;
+	dev->end = dev->begin + dev->buffer_size;
+	dev->rp = dev->wp = dev->begin;
 
 	cdev_init(&dev->cdev, &scull_pipe_fops_sz);
 	dev->cdev.owner = THIS_MODULE;
