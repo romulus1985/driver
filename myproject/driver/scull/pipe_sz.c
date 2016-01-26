@@ -175,6 +175,7 @@ static int scull_p_open_sz(struct inode *inode, struct file *filp)
 
 static int scull_p_fasync_sz(int fd, struct file *filp, int mode)
 {
+	printk(KERN_ALERT "%s enter\n", __func__);
 	scull_pipe_sz *dev = filp->private_data;
 
 	return fasync_helper(fd, filp, mode, &dev->async_queue);
@@ -182,6 +183,7 @@ static int scull_p_fasync_sz(int fd, struct file *filp, int mode)
 
 static int scull_p_release_sz(struct inode *inode, struct file *filp)
 {
+	printk(KERN_ALERT "%s enter\n", __func__);
 	scull_pipe_sz *dev = filp->private_data;
 	scull_p_fasync_sz(-1, filp, 0);
 	down(&dev->sem);
@@ -282,6 +284,7 @@ struct file_operations scull_pipe_fops_sz = {
 	.write = scull_p_write_sz,
 	.release = scull_p_release_sz,
 	.poll = scull_p_pull_sz,
+	.fasync = scull_p_fasync_sz,
 };
 
 static void scull_p_setup_cdev_sz(scull_pipe_sz *dev, int index)
